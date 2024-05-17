@@ -216,7 +216,39 @@ class DataAdmin(admin.PageAdmin):
         
 #         page.body = []
 #         return page
-site.register_admin(DataAdmin, CrawledFileAdmin)
+class DataVisualAdmin(admin.PageAdmin):
+    page_schema = PageSchema(label="Data visualization", icon="fa fa-pie-chart", url="/data-visualization", isDefaultPage=True, sort=100)
+    page_path = "data-visualization"
+    async def get_page(self, request: Request) -> Page:
+        page = await super().get_page(request)
+        
+        page.body = [
+            amis.Grid(
+                columns=[amis.Grid.Column(
+                    body=[
+                        amis.Card.Media(
+                            url="plot/images.png"
+                        ),
+                        amis.Card.Media(
+                            url="plot/images.png"
+                        ),
+                    ]    
+                ),
+                amis.Grid.Column(
+                    body=[
+                        amis.Card.Media(
+                            url="plot/images.png"
+                        ),
+                        amis.Card.Media(
+                            url="plot/images.png"
+                        ),
+                    ]    
+                )
+                ]
+            )
+        ]
+        return page
+site.register_admin(DataAdmin, CrawledFileAdmin, DataVisualAdmin)
 
 site.mount_app(app)
 

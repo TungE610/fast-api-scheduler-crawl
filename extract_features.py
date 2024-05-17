@@ -272,7 +272,6 @@ def phishingFeatureExtraction(url,label):
 
   features = []
   #Address bar based features (10)
-  features.append(url)
   features.append(getDomain(url))
   features.append(havingIP(url))
   features.append(haveAtSign(url))

@@ -7,7 +7,6 @@ import re
 import re
 from bs4 import BeautifulSoup
 import whois
-import urllib
 import urllib.request
 from datetime import datetime
 import requests
@@ -226,16 +225,17 @@ def legitimateFeatureExtraction(url,label):
 
   dns = 0
   domain_name = None
-
+  flags = 0
+  flags = flags | whois.NICClient.WHOIS_QUICK
   try:
-    domain_name = whois.query(url)
+    domain_name = whois.whois(getDomain(url), flags=flags)
   except:
     dns = 1
 
   features.append(dns)
   features.append(1)
-  features.append(1 if dns == 1 else domainAge(domain_name))
-  features.append(1 if dns == 1 else domainEnd(domain_name))
+  features.append(domainAge(domain_name))
+  features.append(domainEnd(domain_name))
   
   # HTML & Javascript based features (4)
   try:

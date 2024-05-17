@@ -117,14 +117,6 @@ class CrawledFileAdmin(admin.PageAdmin):
         ]
         return list(filter(None, actions))
 
-    # async def get_actions_on_bulk(self, request: Request) -> List[Action]:
-    #     bulkActions = [
-    #         await self.get_job_action(request, bulk=True, action="resume"),
-    #         await self.get_job_action(request, bulk=True, action="pause"),
-    #         await self.get_job_action(request, bulk=True, action="remove"),
-    #     ]
-    #     return list(filter(None, bulkActions))
-
     async def get_update_form(self, request: Request, bulk: bool = False):
 
         api = f"{self.router_path}/item/" + ("${ids|raw}" if bulk else "$id")
@@ -136,18 +128,6 @@ class CrawledFileAdmin(admin.PageAdmin):
             submitText=None,
             trimValues=True,
         )
-
-    # async def get_update_action(self, request: Request, bulk: bool = False) -> Optional[Action]:
-    #     return ActionType.Dialog(
-    #         icon="fa fa-plus-circle",
-    #         tooltip=_("Update"),
-    #         dialog=Dialog(
-    #             title=_("Update"),
-    #             size=SizeEnum.lg,
-    #             body=await self.get_update_form(request, bulk=bulk),
-
-    #         ),
-    #     )
 
     async def append_to_original_data(self, request: Request, bulk: bool = False):
         return ActionType.Dialog(

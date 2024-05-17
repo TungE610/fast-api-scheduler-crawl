@@ -21,7 +21,7 @@ from typing import List
 from fastapi_amis_admin.models import Field
 from sqlmodel import SQLModel
 import pandas as pd
-from extract_features import featureExtraction;
+from extract_features import legitimateFeatureExtraction, phishingFeatureExtraction
 
 # Create `FastAPI` application
 # app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -68,18 +68,19 @@ def crawl_phishing_url_from_phishing_tank():
         print("last crawled index: ")
         print(last_crawler_url_id)
 
-def feature_extraction(filename):
+def feature_extraction(filename, label):
     phishing_url = pd.read_csv(filename)
     phish_features = []
-    label = 0  # assuming label is 0 for benign
 
     # Extract features for each URL in the range specified
     for i in range(0, len(phishing_url) - 1):
         url = phishing_url['url'][i]
-        print("check i: ")
         print(i)
         
-        phish_features.append(featureExtraction(url, label))
+        if (label == 0):
+            phish_features.append(legitimateFeatureExtraction(url, label))
+        else:
+            phish_features.append(phishingFeatureExtraction(url, label))
     # Define the feature names
     feature_names = ['Url', 'Domain', 'Have_IP', 'Have_At', 'URL_Length', 'URL_Depth', 'Redirection', 
                     'https_Domain', 'TinyURL', 'Prefix/Suffix', 'DNS_Record', 'Web_Traffic', 
@@ -102,7 +103,7 @@ async def crawl_legitimate_url_from_common_crawl():
         crawler_code =  await dbconfig.read('crawler_code')
                 
         filename = phisherman.get_data_from_common_crawl(number.data, pattern.data, crawler_code.data)
-        feature_extraction(filename)
+        feature_extraction(filename, 0)
     
 
 # use when you want to run the job periodically at certain time(s) of day

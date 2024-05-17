@@ -209,7 +209,7 @@ def forwarding(response):
     else:
       return 1
     
-def featureExtraction(url,label):
+def legitimateFeatureExtraction(url,label):
 
   features = []
   #Address bar based features (10)
@@ -223,18 +223,54 @@ def featureExtraction(url,label):
   features.append(httpDomain(url))
   features.append(tinyURL(url))
   features.append(prefixSuffix(url))
+
+  dns = 0
+  domain_name = None
+
+  try:
+    domain_name = whois.query(url)
+  except:
+    dns = 1
+
+  features.append(dns)
+  features.append(1)
+  features.append(1 if dns == 1 else domainAge(domain_name))
+  features.append(1 if dns == 1 else domainEnd(domain_name))
   
-  #Domain based features (4)
-  # dns = 0
-  # try:
-    # domain_name = whois.whois(urlparse(url).netloc)
-  # except:
+  # HTML & Javascript based features (4)
+  try:
+    response = requests.get(url)
+  except:
+    response = ""
+  features.append(iframe(response))
+  features.append(mouseOver(response))
+  features.append(rightClick(response))
+  features.append(forwarding(response))
+  features.append(label)
+  
+  return features
+
+def phishingFeatureExtraction(url,label):
+
+  features = []
+  #Address bar based features (10)
+  features.append(url)
+  features.append(getDomain(url))
+  features.append(havingIP(url))
+  features.append(haveAtSign(url))
+  features.append(getLength(url))
+  features.append(getDepth(url))
+  features.append(redirection(url))
+  features.append(httpDomain(url))
+  features.append(tinyURL(url))
+  features.append(prefixSuffix(url))
+
   dns = 1
 
   features.append(dns)
   features.append(0)
-  features.append(1)
-  features.append(1)
+  features.append(domainAge(dns))
+  features.append(domainEnd(dns))
   
   # HTML & Javascript based features (4)
   try:

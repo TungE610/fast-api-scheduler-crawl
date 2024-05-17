@@ -134,12 +134,21 @@ def domainAge(domain_name):
     try:
       creation_date = datetime.strptime(creation_date,'%Y-%m-%d')
       expiration_date = datetime.strptime(expiration_date,"%Y-%m-%d")
+      ageofdomain = abs((expiration_date - creation_date).days)
+      if ((ageofdomain/30) < 6):
+        age = 1
+      else:
+        age = 0
     except:
       return 1
   if ((expiration_date is None) or (creation_date is None)):
       return 1
   elif ((type(expiration_date) is list) or (type(creation_date) is list)):
-      return 1
+      days_gap = (expiration_date[0] - creation_date[0]).days
+      if ((days_gap/30) < 6):
+        age = 1
+      else:
+        age = 0
   else:
     ageofdomain = abs((expiration_date - creation_date).days)
     if ((ageofdomain/30) < 6):
@@ -154,19 +163,28 @@ def domainEnd(domain_name):
   if isinstance(expiration_date,str):
     try:
       expiration_date = datetime.strptime(expiration_date,"%Y-%m-%d")
+      end = abs((expiration_date - today).days)
+      if ((end/30) < 6):
+        end = 0
+      else:
+        end = 1
     except:
       return 1
   if (expiration_date is None):
       return 1
   elif (type(expiration_date) is list):
-      return 1
+      days_gap = (expiration_date[0] - datetime.now()).days
+      if ((days_gap/30) < 6):
+        end = 1
+      else:
+        end = 0
   else:
     today = datetime.now()
     end = abs((expiration_date - today).days)
     if ((end/30) < 6):
-      end = 0
-    else:
       end = 1
+    else:
+      end = 0
   return end
 
 # 15. IFrame Redirection (iFrame)

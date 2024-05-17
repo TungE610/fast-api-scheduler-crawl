@@ -87,6 +87,7 @@ class Phisherman:
     
 
     def get_data_from_common_crawl(self, number, pattern, crawler_code):
+        
         response_data = self.send_get_request(self.get_commom_crawl_url(crawler_code, pattern))
         if response_data:
             response = response_data.replace('\n', '')
@@ -114,6 +115,7 @@ class Phisherman:
             
             seen_domains = set()
             # Write data rows
+            count = 0
             for row in json_data:
                 url = row.get("url", '')
                 domain = get_domain(url)
@@ -122,6 +124,9 @@ class Phisherman:
                     continue
                 
                 seen_domains.add(domain)
+                count = count + 1
+                if (count == int(number)):
+                    break
                 filtered_row = {"url": url}
                 writer.writerow(filtered_row)
 

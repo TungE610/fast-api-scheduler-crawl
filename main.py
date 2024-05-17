@@ -13,7 +13,7 @@ from fastapi_scheduler import SchedulerAdmin
 from crawler import Phisherman
 from fastapi_amis_admin.amis.components import Page, PageSchema, Property
 import csv
-import os
+import whois
 from datetime import datetime
 from fastapi_config import ConfigModelAdmin, DbConfigStore, ConfigAdmin
 from pydantic import BaseModel

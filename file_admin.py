@@ -176,8 +176,8 @@ class CrawledFileAdmin(admin.PageAdmin):
             writer = csv.writer(file)
             writer.writerows(rows)
             
-    def append_unique_rows_with_id(self, source_file, target_file):
-    # Read the rows from both source and target files
+    def append_unique_rows_with_domain(self, source_file, target_file):
+        # Read the rows from both source and target files
         source_rows = self.read_csv(source_file)
         target_rows = self.read_csv(target_file)
         
@@ -195,19 +195,14 @@ class CrawledFileAdmin(admin.PageAdmin):
         if source_header != target_header:
             raise ValueError("CSV files have different headers")
 
-        # Determine the next ID to use
-        existing_ids = [int(row[0]) for row in target_data if row[0].isdigit()]
-        next_id = max(existing_ids) + 1 if existing_ids else 1
+        # Use a set for checking duplicates based on the "Domain" column (first column)
+        existing_domains = set(row[0] for row in target_data)
 
-        # Use a set for checking duplicates based on the data rows (excluding ID column)
-        target_set = set(map(tuple, [row[1:] for row in target_data]))
-
-        # Append unique rows from source to target data with new IDs
+        # Append unique rows from source to target data based on the domain
         for row in source_data:
-            if tuple(row[1:]) not in target_set:
-                target_data.append([next_id] + row[1:])
-                target_set.add(tuple(row[1:]))
-                next_id += 1
+            if row[0] not in existing_domains:
+                target_data.append(row)
+                existing_domains.add(row[0])
 
         # Write the combined data back to the target file
         combined_rows = [target_header] + target_data
@@ -245,7 +240,7 @@ class CrawledFileAdmin(admin.PageAdmin):
                 for file in selected_files:
                     
                     type = file.file_name.split("_")[0]
-                    self.append_unique_rows_with_id(f"file/{file.file_name}", f"data/{type}_data.csv")
+                    self.append_unique_rows_with_domain(f"file/{file.file_name}", f"data/{type}_data.csv")
                     file.file_name = data.file_name  # Update the file_name if provided
 
             return BaseApiOut(data=selected_files)

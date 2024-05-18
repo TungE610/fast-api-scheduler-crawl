@@ -14,6 +14,7 @@ from crawler import Phisherman
 from fastapi_amis_admin.amis.components import Page, PageSchema, Property
 import csv
 import whois
+import os
 from datetime import datetime
 from fastapi_config import ConfigModelAdmin, DbConfigStore, ConfigAdmin
 from pydantic import BaseModel
@@ -22,6 +23,8 @@ from fastapi_amis_admin.models import Field
 from sqlmodel import SQLModel
 import pandas as pd
 from extract_features import legitimateFeatureExtraction, phishingFeatureExtraction
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 # Create `FastAPI` application
 # app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -95,7 +98,7 @@ def feature_extraction(filename, label):
 
     print("Feature extraction and CSV creation completed successfully.")
 
-@scheduler.scheduled_job('interval', seconds=30, max_instances=1)
+@scheduler.scheduled_job('interval', seconds=3000, max_instances=1)
 async def crawl_legitimate_url_from_common_crawl():
     with Phisherman(1, 1) as phisherman:
         number =  await dbconfig.read('number')
@@ -147,7 +150,7 @@ class DataAdmin(admin.PageAdmin):
         page = await super().get_page(request)
         legitimate_data = self.get_legitimate_data()
         phishing_data = self.get_phishing_data()
-    
+        print(legitimate_data[len(legitimate_data) - 1])
         page.body = [
             amis.Flex(items=[
                 f"Legitimate data total rows: {len(legitimate_data)}",],justify="space-between", alignItems="center"),
@@ -155,26 +158,26 @@ class DataAdmin(admin.PageAdmin):
                 title="Legitimate data",
                 column=2,
                 items=[
-                    Property.Item(label="id", content=len(legitimate_data) - 1),
-                    Property.Item(label="Url", content=legitimate_data[len(legitimate_data) - 1][1]),
-                    Property.Item(label="id", content=len(legitimate_data) - 2),
-                    Property.Item(label="Url", content=legitimate_data[len(legitimate_data) - 2][1]),
-                    Property.Item(label="id", content=len(legitimate_data) - 3),
-                    Property.Item(label="Url", content=legitimate_data[len(legitimate_data) -3][1]),
-                    Property.Item(label="id", content=len(legitimate_data) - 4),
-                    Property.Item(label="Url", content=legitimate_data[len(legitimate_data) -4][1]),
-                    Property.Item(label="id", content=len(legitimate_data) - 5),
-                    Property.Item(label="Url", content=legitimate_data[len(legitimate_data) -5][1]),
-                    Property.Item(label="id", content=len(legitimate_data) - 6),
-                    Property.Item(label="Url", content=legitimate_data[len(legitimate_data) -6][1]),
-                    Property.Item(label="id", content=len(legitimate_data) - 7),
-                    Property.Item(label="Url", content=legitimate_data[len(legitimate_data) -7][1]),
-                    Property.Item(label="id", content=len(legitimate_data) - 8),
-                    Property.Item(label="Url", content=legitimate_data[len(legitimate_data) -8][1]),
-                    Property.Item(label="id", content=len(legitimate_data) - 9),
-                    Property.Item(label="Url", content=legitimate_data[len(legitimate_data) -9][1]),
-                    Property.Item(label="id", content=len(legitimate_data) - 10),
-                    Property.Item(label="Url", content=legitimate_data[len(legitimate_data) -10][1]),
+                    Property.Item(label="index", content=len(legitimate_data) - 1),
+                    Property.Item(label="Domain", content=legitimate_data[len(legitimate_data) - 1][0]),
+                    Property.Item(label="index", content=len(legitimate_data) - 2),
+                    Property.Item(label="Domain", content=legitimate_data[len(legitimate_data) - 2][0]),
+                    Property.Item(label="index", content=len(legitimate_data) - 3),
+                    Property.Item(label="Domain", content=legitimate_data[len(legitimate_data) -3][0]),
+                    Property.Item(label="index", content=len(legitimate_data) - 4),
+                    Property.Item(label="Domain", content=legitimate_data[len(legitimate_data) -4][0]),
+                    Property.Item(label="index", content=len(legitimate_data) - 5),
+                    Property.Item(label="Domain", content=legitimate_data[len(legitimate_data) -5][0]),
+                    Property.Item(label="index", content=len(legitimate_data) - 6),
+                    Property.Item(label="Domain", content=legitimate_data[len(legitimate_data) -6][0]),
+                    Property.Item(label="index", content=len(legitimate_data) - 7),
+                    Property.Item(label="Domain", content=legitimate_data[len(legitimate_data) -7][0]),
+                    Property.Item(label="index", content=len(legitimate_data) - 8),
+                    Property.Item(label="Domain", content=legitimate_data[len(legitimate_data) -8][0]),
+                    Property.Item(label="index", content=len(legitimate_data) - 9),
+                    Property.Item(label="Domain", content=legitimate_data[len(legitimate_data) -9][0]),
+                    Property.Item(label="index", content=len(legitimate_data) - 10),
+                    Property.Item(label="Domain", content=legitimate_data[len(legitimate_data) -10][0]),
                 ],
             ),
             amis.Divider(),
@@ -207,18 +210,57 @@ class DataAdmin(admin.PageAdmin):
             ),
         ]
         return page
-# class FileAdmin(admin.PageAdmin):
-#     page_schema = PageSchema(label="Crawled File", icon="fa fa-file", url="/files", isDefaultPage=True, sort=100)
-#     page_path = "files"
+
+def drawHistogram():
+    # Đọc dữ liệu
+    legit_df = pd.read_csv('data/legitimate_data.csv')
+    phish_df = pd.read_csv('data/phishing_data.csv')
+
+    # Kiểm tra và tạo thư mục "upload" nếu chưa tồn tại
+    output_dir = 'upload'
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    # Ví dụ với 'URL_Length'
+    plt.figure(figsize=(12, 6))
+    sns.histplot(legit_df['URL_Length'], color='blue', label='Legitimate', kde=True, bins=30)
+    sns.histplot(phish_df['URL_Length'], color='red', label='Phishing', kde=True, bins=30)
+    plt.legend()
+    plt.title('Distribution of URL Length')
+
+    # Lưu biểu đồ vào file trong thư mục "upload"
+    output_path = os.path.join(output_dir, 'histogram.png')
+    plt.savefig(output_path)
+
+def drawHeatMap():
+    legit_df = pd.read_csv('data/legitimate_data.csv')
+    phish_df = pd.read_csv('data/phishing_data.csv')
     
-#     async def get_page(self, request: Request) -> Page:
-#         page = await super().get_page(request)
-        
-#         page.body = []
-#         return page
+    combined_df = pd.concat([legit_df, phish_df])
+
+    # Tính toán ma trận tương quan, bỏ cột 'Domain'
+    corr = combined_df.drop(columns=['Domain']).corr()
+
+    # Kiểm tra và tạo thư mục "upload" nếu chưa tồn tại
+    output_dir = 'upload'
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    # Vẽ heatmap của ma trận tương quan
+    plt.figure(figsize=(16, 12))
+    sns.heatmap(corr, annot=True, cmap='coolwarm')
+    plt.title('Correlation Matrix')
+
+    # Lưu biểu đồ vào file trong thư mục "upload"
+    output_path = os.path.join(output_dir, 'correlation_matrix.png')
+    plt.savefig(output_path)
+
+
 class DataVisualAdmin(admin.PageAdmin):
     page_schema = PageSchema(label="Data visualization", icon="fa fa-pie-chart", url="/data-visualization", isDefaultPage=True, sort=100)
     page_path = "data-visualization"
+    drawHistogram()
+    drawHeatMap()
     async def get_page(self, request: Request) -> Page:
         page = await super().get_page(request)
         
@@ -226,21 +268,32 @@ class DataVisualAdmin(admin.PageAdmin):
             amis.Grid(
                 columns=[amis.Grid.Column(
                     body=[
-                        amis.Card.Media(
-                            url="plot/images.png"
+                        amis.Image(
+                            type="image",
+                            # originalSrc="plot/images.png",
+                            height=500,
+                            width=750,
+                            src="upload/histogram.png",
                         ),
-                        amis.Card.Media(
-                            url="plot/images.png"
+                        amis.Image(         
+                            type="image",
+                            height=500,
+                            width=750,
+                            src="upload/correlation_matrix.png",
                         ),
                     ]    
                 ),
                 amis.Grid.Column(
                     body=[
-                        amis.Card.Media(
-                            url="plot/images.png"
+                        amis.Images(
+                            type="image",
+                            # originalSrc="plot/images.png",
+                            src="plot/images.png",
                         ),
-                        amis.Card.Media(
-                            url="plot/images.png"
+                        amis.Image(
+                            type="image",
+                            # originalSrc="plot/images.png",
+                            src="plot/images.png",
                         ),
                     ]    
                 )

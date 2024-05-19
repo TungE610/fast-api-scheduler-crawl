@@ -14,8 +14,10 @@ import requests
 
 def getDomain(url):  
     domain = urlparse(url).netloc
-    if re.match(r"^www.",domain):
-        domain = domain.replace("www.","")
+    if re.match(r"^www.", domain):
+        domain = domain.replace("www.", "")
+    if not domain:
+        domain = url
     return domain
 
 # 2.Checks for IP address in URL (Have_IP)
@@ -273,7 +275,7 @@ def legitimateFeatureExtraction(url,label):
     dns = 1
 
   features.append(dns)
-  features.append(1)
+  features.append(0)
   features.append(1 if dns == 1 else domainAge(domain_name))
   features.append(1 if dns == 1 else domainEnd(domain_name))
   
@@ -311,7 +313,7 @@ def phishingFeatureExtraction(url,label):
     dns = 1
 
   features.append(dns)
-  features.append(0)
+  features.append(1)
   features.append(1 if dns == 1 else domainAge(domain_name))
   features.append(1 if dns == 1 else domainEnd(domain_name))
   

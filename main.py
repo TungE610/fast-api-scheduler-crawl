@@ -257,35 +257,35 @@ def histogram():
     # Save the figure
     plt.savefig('upload/histogram.png')
     
-def drawHeatMap():
-    legit_df = pd.read_csv('data/legitimate_data.csv')
-    phish_df = pd.read_csv('data/phishing_data.csv')
+# def drawHeatMap():
+#     legit_df = pd.read_csv('data/legitimate_data.csv')
+#     phish_df = pd.read_csv('data/phishing_data.csv')
     
-    combined_df = pd.concat([legit_df, phish_df])
+#     combined_df = pd.concat([legit_df, phish_df])
 
-    # Tính toán ma trận tương quan, bỏ cột 'Domain'
-    corr = combined_df.drop(columns=['Domain']).corr()
+#     # Tính toán ma trận tương quan, bỏ cột 'Domain'
+#     corr = combined_df.drop(columns=['Domain']).corr()
 
-    # Kiểm tra và tạo thư mục "upload" nếu chưa tồn tại
-    output_dir = 'upload'
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+#     # Kiểm tra và tạo thư mục "upload" nếu chưa tồn tại
+#     output_dir = 'upload'
+#     if not os.path.exists(output_dir):
+#         os.makedirs(output_dir)
 
-    # Vẽ heatmap của ma trận tương quan
-    plt.figure(figsize=(16, 12))
-    sns.heatmap(corr, annot=True, cmap='coolwarm')
-    plt.title('Correlation Matrix')
+#     # Vẽ heatmap của ma trận tương quan
+#     plt.figure(figsize=(16, 12))
+#     sns.heatmap(corr, annot=True, cmap='coolwarm')
+#     plt.title('Correlation Matrix')
 
-    # Lưu biểu đồ vào file trong thư mục "upload"
-    output_path = os.path.join(output_dir, 'correlation_matrix.png')
-    plt.savefig(output_path)
+#     # Lưu biểu đồ vào file trong thư mục "upload"
+#     output_path = os.path.join(output_dir, 'correlation_matrix.png')
+#     plt.savefig(output_path)
 
 
 class DataVisualAdmin(admin.PageAdmin):
     page_schema = PageSchema(label="Data visualization", icon="fa fa-pie-chart", url="/data-visualization", isDefaultPage=True, sort=100)
     page_path = "data-visualization"
     histogram()
-    drawHeatMap()
+    # drawHeatMap()
     async def get_page(self, request: Request) -> Page:
         page = await super().get_page(request)
         

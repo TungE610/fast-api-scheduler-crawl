@@ -98,14 +98,15 @@ def feature_extraction(filename, label):
 
     print("Feature extraction and CSV creation completed successfully.")
 
-@scheduler.scheduled_job('interval', seconds=3000, max_instances=1)
+@scheduler.scheduled_job('interval', seconds=30, max_instances=1)
 async def crawl_legitimate_url_from_common_crawl():
     with Phisherman(1, 1) as phisherman:
-        number =  await dbconfig.read('number')
+        start =  await dbconfig.read('start')
+        end =  await dbconfig.read('end')
         pattern =  await dbconfig.read('pattern')
         crawler_code =  await dbconfig.read('crawler_code')
                 
-        filename = phisherman.get_data_from_common_crawl(number.data, pattern.data, crawler_code.data)
+        filename = phisherman.get_data_from_common_crawl(start.data, end.data, pattern.data, crawler_code.data)
         feature_extraction(filename, 0)
     
 

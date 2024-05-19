@@ -251,8 +251,8 @@ def legitimateFeatureExtraction(url,label):
 
   features.append(dns)
   features.append(1)
-  features.append(domainAge(domain_name))
-  features.append(domainEnd(domain_name))
+  features.append(1 if dns == 1 else domainAge(domain_name))
+  features.append(1 if dns == 1 else domainEnd(domain_name))
   
   # HTML & Javascript based features (4)
   try:

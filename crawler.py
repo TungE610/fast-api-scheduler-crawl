@@ -86,50 +86,56 @@ class Phisherman:
             return None
     
 
-    def get_data_from_common_crawl(self, number, pattern, crawler_code):
-        
+    def get_data_from_common_crawl(self, start, end, pattern, crawler_code):
+    # Send the get request to retrieve response data
         response_data = self.send_get_request(self.get_commom_crawl_url(crawler_code, pattern))
+        
         if response_data:
+            # Preprocess the response data to form a valid JSON array
             response = response_data.replace('\n', '')
             response = response.replace('}{', '},{')
             response = "[" + response + "]"
             json_data = json.loads(response)
             
-        fieldnames = ["url"]
-
-        # Write JSON data to CSV
-        current_datetime = datetime.now().strftime('%Y%m%d_%H%M%S')
-
-        # Create the dynamic filename
-        filename = f'file/legitimate_commoncrawl_{current_datetime}.csv'
-
-        def get_domain(url):
-            return urlparse(url).netloc
-
-        # Open the file with the dynamic filename for writing
-        with open(filename, 'w', newline='', encoding='utf-8') as csvfile:
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            # Ensure start and end are within the bounds of json_data
+            start = int(start)  # Ensure start is not negative
+            end = min(int(end), len(json_data))  # Ensure end is not beyond the length of json_data
+            # Define the field names for the CSV
+            fieldnames = ["url"]
             
-            # Write header row
-            writer.writeheader()
+            # Generate the dynamic filename
+            current_datetime = datetime.now().strftime('%Y%m%d_%H%M%S')
+            filename = f'file/legitimate_commoncrawl_{current_datetime}.csv'
+            print("start:")
+            print(start)
+            print("end:")
+            print(end)
             
-            seen_domains = set()
-            # Write data rows
-            count = 0
-            for row in json_data:
-                url = row.get("url", '')
-                domain = get_domain(url)
+            def get_domain(url):
+                return urlparse(url).netloc
+            
+            # Open the file with the dynamic filename for writing
+            with open(filename, 'w', newline='', encoding='utf-8') as csvfile:
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                 
-                if domain in seen_domains:
-                    continue
+                # Write the header row
+                writer.writeheader()
                 
-                seen_domains.add(domain)
-                count = count + 1
-                if (count == int(number)):
-                    break
-                filtered_row = {"url": url}
-                writer.writerow(filtered_row)
-
+                seen_domains = set()
+                # Iterate over the specified range within json_data
+                for row in json_data[start:end]:
+                    url = row.get("url", '')
+                    domain = get_domain(url)
+                    
+                    # Skip duplicate domains
+                    if domain in seen_domains:
+                        continue
+                    
+                    seen_domains.add(domain)
+                    filtered_row = {"url": url}
+                    writer.writerow(filtered_row)
+            
+            # Return the filename of the written CSV file
             return filename
 
             # Convert to DataFrame and save to CSV

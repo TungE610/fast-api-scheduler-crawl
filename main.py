@@ -25,6 +25,7 @@ import pandas as pd
 from extract_features import legitimateFeatureExtraction, phishingFeatureExtraction
 import seaborn as sns
 import matplotlib.pyplot as plt
+import math
 
 # Create `FastAPI` application
 # app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -57,19 +58,18 @@ class SiteCfgAdmin(ConfigAdmin):
 
 scheduler = SchedulerAdmin.bind(site)
 
-last_crawler_url_id = "8576634"
+last_crawler_url_id = "8571312"
 
 # Add scheduled tasks, refer to the official documentation: https://apscheduler.readthedocs.io/en/master/
 # use when you want to run the job at fixed intervals of time
-@scheduler.scheduled_job('interval', seconds=86400, max_instances=1)
+@scheduler.scheduled_job('interval', seconds=60, max_instances=1)
 def crawl_phishing_url_from_phishing_tank():
     global last_crawler_url_id
     start, end = 1, 1
 
     with Phisherman(start, end) as phisherman:
-        last_crawler_url_id = phisherman.crawl(last_crawler_url_id)
-        print("last crawled index: ")
-        print(last_crawler_url_id)
+        # saved_to_file_name = phisherman.crawl(last_crawler_url_id)
+        feature_extraction("file/phishing_tank_20240519_225602.csv", 1)
 
 def feature_extraction(filename, label):
     phishing_url = pd.read_csv(filename)
@@ -98,7 +98,7 @@ def feature_extraction(filename, label):
 
     print("Feature extraction and CSV creation completed successfully.")
 
-@scheduler.scheduled_job('interval', seconds=30, max_instances=1)
+@scheduler.scheduled_job('interval', seconds=30000, max_instances=1)
 async def crawl_legitimate_url_from_common_crawl():
     with Phisherman(1, 1) as phisherman:
         start =  await dbconfig.read('start')
@@ -187,52 +187,76 @@ class DataAdmin(admin.PageAdmin):
                 title="Phishing data",
                 column=2,
                 items=[
-                    Property.Item(label="id", content=len(phishing_data) - 1),
-                    Property.Item(label="Url", content=phishing_data[len(phishing_data) - 1][1]),
-                    Property.Item(label="id", content=len(phishing_data) - 2),
-                    Property.Item(label="Url", content=phishing_data[len(phishing_data) - 2][1]),
-                    Property.Item(label="id", content=len(phishing_data) - 3),
-                    Property.Item(label="Url", content=phishing_data[len(phishing_data) -3][1]),
-                    Property.Item(label="id", content=len(phishing_data) - 4),
-                    Property.Item(label="Url", content=phishing_data[len(phishing_data) -4][1]),
-                    Property.Item(label="id", content=len(phishing_data) - 5),
-                    Property.Item(label="Url", content=phishing_data[len(phishing_data) -5][1]),
-                    Property.Item(label="id", content=len(phishing_data) - 6),
-                    Property.Item(label="Url", content=phishing_data[len(phishing_data) -6][1]),
-                    Property.Item(label="id", content=len(phishing_data) - 7),
-                    Property.Item(label="Url", content=phishing_data[len(phishing_data) -7][1]),
-                    Property.Item(label="id", content=len(phishing_data) - 8),
-                    Property.Item(label="Url", content=phishing_data[len(phishing_data) -8][1]),
-                    Property.Item(label="id", content=len(phishing_data) - 9),
-                    Property.Item(label="Url", content=phishing_data[len(phishing_data) -9][1]),
-                    Property.Item(label="id", content=len(phishing_data) - 10),
-                    Property.Item(label="Url", content=phishing_data[len(phishing_data) -10][1]),
+                    Property.Item(label="index", content=len(phishing_data) - 1),
+                    Property.Item(label="Domain", content=phishing_data[len(phishing_data) - 1][0]),
+                    Property.Item(label="index", content=len(phishing_data) - 2),
+                    Property.Item(label="Domain", content=phishing_data[len(phishing_data) - 2][0]),
+                    Property.Item(label="index", content=len(phishing_data) - 3),
+                    Property.Item(label="Domain", content=phishing_data[len(phishing_data) -3][0]),
+                    Property.Item(label="index", content=len(phishing_data) - 4),
+                    Property.Item(label="Domain", content=phishing_data[len(phishing_data) -4][0]),
+                    Property.Item(label="index", content=len(phishing_data) - 5),
+                    Property.Item(label="Domain", content=phishing_data[len(phishing_data) -5][0]),
+                    Property.Item(label="index", content=len(phishing_data) - 6),
+                    Property.Item(label="Domain", content=phishing_data[len(phishing_data) -6][0]),
+                    Property.Item(label="index", content=len(phishing_data) - 7),
+                    Property.Item(label="Domain", content=phishing_data[len(phishing_data) -7][0]),
+                    Property.Item(label="index", content=len(phishing_data) - 8),
+                    Property.Item(label="Domain", content=phishing_data[len(phishing_data) -8][0]),
+                    Property.Item(label="index", content=len(phishing_data) - 9),
+                    Property.Item(label="Domain", content=phishing_data[len(phishing_data) -9][0]),
+                    Property.Item(label="index", content=len(phishing_data) - 10),
+                    Property.Item(label="Domain", content=phishing_data[len(phishing_data) -10][0]),
                 ],
             ),
         ]
         return page
 
-def drawHistogram():
-    # Đọc dữ liệu
-    legit_df = pd.read_csv('data/legitimate_data.csv')
-    phish_df = pd.read_csv('data/phishing_data.csv')
-
-    # Kiểm tra và tạo thư mục "upload" nếu chưa tồn tại
-    output_dir = 'upload'
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-
-    # Ví dụ với 'URL_Length'
-    plt.figure(figsize=(12, 6))
-    sns.histplot(legit_df['URL_Length'], color='blue', label='Legitimate', kde=True, bins=30)
-    sns.histplot(phish_df['URL_Length'], color='red', label='Phishing', kde=True, bins=30)
-    plt.legend()
-    plt.title('Distribution of URL Length')
-
-    # Lưu biểu đồ vào file trong thư mục "upload"
-    output_path = os.path.join(output_dir, 'histogram.png')
-    plt.savefig(output_path)
-
+def histogram():
+    legit_data = pd.read_csv('data/legitimate_data.csv')
+    phishing_data = pd.read_csv('data/phishing_data.csv')
+    data = pd.concat([legit_data, phishing_data], ignore_index=True)
+    df = pd.DataFrame(data)
+    df = df.drop(['Domain'], axis=1).copy()
+    features = [
+        'Have_IP',
+        'Have_At',
+        'URL_Length',
+        'Redirection',
+        'https_Domain',
+        'TinyURL',
+        'Prefix/Suffix',
+        'DNS_Record',
+        'Web_Traffic',
+        'Domain_Age',
+        'Domain_End',
+        'iFrame',
+        'Mouse_Over',
+        'Right_Click',
+        'Web_Forwards',
+    ]
+    num_features = len(features)
+    num_cols = 4
+    num_rows = math.ceil(num_features / num_cols)
+    fig, axes = plt.subplots(num_rows, num_cols, figsize=(15, 4 * num_rows))
+    axes = axes.flatten()
+    
+    for i, feature in enumerate(features):
+        pivot_table = data.pivot_table(index=feature, columns='Label', aggfunc='size', fill_value=0)
+        pivot_table.plot(kind='bar', stacked=True, ax=axes[i], color=['blue', 'orange'])
+        axes[i].set_xlabel(feature)
+        axes[i].set_ylabel('count')
+        axes[i].legend(title='Label', labels=['Legitimate', 'Phishing'], loc='upper right')
+    
+    # Remove any unused subplots
+    for j in range(i + 1, len(axes)):
+        fig.delaxes(axes[j])
+    
+    plt.tight_layout()
+    
+    # Save the figure
+    plt.savefig('upload/histogram.png')
+    
 def drawHeatMap():
     legit_df = pd.read_csv('data/legitimate_data.csv')
     phish_df = pd.read_csv('data/phishing_data.csv')
@@ -260,7 +284,7 @@ def drawHeatMap():
 class DataVisualAdmin(admin.PageAdmin):
     page_schema = PageSchema(label="Data visualization", icon="fa fa-pie-chart", url="/data-visualization", isDefaultPage=True, sort=100)
     page_path = "data-visualization"
-    drawHistogram()
+    histogram()
     drawHeatMap()
     async def get_page(self, request: Request) -> Page:
         page = await super().get_page(request)

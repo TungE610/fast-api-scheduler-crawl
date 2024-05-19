@@ -154,7 +154,7 @@ class Phisherman:
 
 
     def find_last_crawled_url_page(self, last_crawled_id): 
-        for page in range(1, 100):
+        for page in range(1, 10000):
             result = self.get_ids(page)
             if result:
                 for url_id in result:
@@ -181,4 +181,4 @@ class Phisherman:
                         last_id = url_id
                         flag = 1
         print(f"Crawling complete! Successfully gathered {self.success} URLs")
-        return last_id
+        return self.filename

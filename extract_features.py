@@ -1,5 +1,6 @@
 # 1.Domain of the URL (Domain) 
 import pandas as pd
+import pytz  # You'll need this if dealing with timezone-aware datetime objects
 
 from urllib.parse import urlparse,urlencode
 import ipaddress
@@ -128,64 +129,86 @@ def web_traffic(url):
 
 # 13.Survival time of domain: The difference between termination time and creation time (Domain_Age)  
 def domainAge(domain_name):
-  creation_date = domain_name.creation_date
-  expiration_date = domain_name.expiration_date
-  if (isinstance(creation_date,str) or isinstance(expiration_date,str)):
-    try:
-      creation_date = datetime.strptime(creation_date,'%Y-%m-%d')
-      expiration_date = datetime.strptime(expiration_date,"%Y-%m-%d")
-      ageofdomain = abs((expiration_date - creation_date).days)
-      if ((ageofdomain/30) < 6):
-        age = 1
-      else:
-        age = 0
-    except:
-      return 1
-  if ((expiration_date is None) or (creation_date is None)):
-      return 1
-  elif ((type(expiration_date) is list) or (type(creation_date) is list)):
-      days_gap = (expiration_date[0] - creation_date[0]).days
-      if ((days_gap/30) < 6):
-        age = 1
-      else:
-        age = 0
-  else:
+    creation_date = domain_name.creation_date
+    expiration_date = domain_name.expiration_date
+    
+    # Function to ensure the datetime objects are timezone-naive
+    def make_naive(dt):
+        if dt.tzinfo is not None:
+            return dt.astimezone(pytz.utc).replace(tzinfo=None)
+        return dt
+
+    # Check if dates are in string format and convert them
+    if isinstance(creation_date, str) or isinstance(expiration_date, str):
+        try:
+            creation_date = datetime.strptime(creation_date, '%Y-%m-%d')
+            expiration_date = datetime.strptime(expiration_date, "%Y-%m-%d")
+        except Exception as e:
+            return 1
+    
+    # If either date is None, return 1
+    if creation_date is None or expiration_date is None:
+        return 1
+    
+    # Handle the case where dates are lists (take the first element if they are lists)
+    if isinstance(creation_date, list):
+        creation_date = creation_date[0]
+    if isinstance(expiration_date, list):
+        expiration_date = expiration_date[0]
+    
+    # Make both dates naive
+    creation_date = make_naive(creation_date)
+    expiration_date = make_naive(expiration_date)
+    
+    # Calculate the age of the domain
     ageofdomain = abs((expiration_date - creation_date).days)
-    if ((ageofdomain/30) < 6):
-      age = 1
+    if (ageofdomain / 30) < 6:
+        age = 1
     else:
-      age = 0
-  return age
+        age = 0
+    
+    return age
 
 # 14.End time of domain: The difference between termination time and current time (Domain_End) 
 def domainEnd(domain_name):
-  expiration_date = domain_name.expiration_date
-  if isinstance(expiration_date,str):
-    try:
-      expiration_date = datetime.strptime(expiration_date,"%Y-%m-%d")
-      end = abs((expiration_date - today).days)
-      if ((end/30) < 6):
-        end = 0
-      else:
-        end = 1
-    except:
-      return 1
-  if (expiration_date is None):
-      return 1
-  elif (type(expiration_date) is list):
-      days_gap = (expiration_date[0] - datetime.now()).days
-      if ((days_gap/30) < 6):
-        end = 1
-      else:
-        end = 0
-  else:
-    today = datetime.now()
-    end = abs((expiration_date - today).days)
-    if ((end/30) < 6):
-      end = 1
+    expiration_date = domain_name.expiration_date
+    
+    # Define today's date in UTC
+    today = datetime.now(pytz.utc)
+    
+    # Helper function to ensure datetime is naive (no timezone info)
+    def make_naive(dt):
+        if dt.tzinfo is not None:
+            return dt.astimezone(pytz.utc).replace(tzinfo=None)
+        return dt
+
+    # If expiration_date is a string, convert it to datetime
+    if isinstance(expiration_date, str):
+        try:
+            expiration_date = datetime.strptime(expiration_date, "%Y-%m-%d")
+            expiration_date = make_naive(expiration_date)
+        except:
+            return 1
+    
+    # If expiration_date is None, return 1
+    if expiration_date is None:
+        return 1
+    
+    # If expiration_date is a list, take the first element
+    if isinstance(expiration_date, list):
+        expiration_date = expiration_date[0]
+    
+    # Ensure expiration_date is naive
+    expiration_date = make_naive(expiration_date)
+    
+    # Calculate the difference in days
+    end = abs((expiration_date - today.replace(tzinfo=None)).days)
+    
+    # Determine the domain end status
+    if (end / 30) < 6:
+        return 1
     else:
-      end = 0
-  return end
+        return 0
 
 # 15. IFrame Redirection (iFrame)
 def iframe(response):
@@ -281,12 +304,16 @@ def phishingFeatureExtraction(url,label):
   features.append(tinyURL(url))
   features.append(prefixSuffix(url))
 
-  dns = 1
+  dns = 0
+  try:
+    domain_name = whois.whois(getDomain(url))
+  except:
+    dns = 1
 
   features.append(dns)
   features.append(0)
-  features.append(domainAge(dns))
-  features.append(domainEnd(dns))
+  features.append(1 if dns == 1 else domainAge(domain_name))
+  features.append(1 if dns == 1 else domainEnd(domain_name))
   
   # HTML & Javascript based features (4)
   try:

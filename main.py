@@ -26,6 +26,11 @@ from extract_features import legitimateFeatureExtraction, phishingFeatureExtract
 import seaborn as sns
 import matplotlib.pyplot as plt
 import math
+from sklearn.model_selection import train_test_split
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
+from xgboost import XGBClassifier
+from sklearn.metrics import accuracy_score, f1_score
 
 # Create `FastAPI` application
 # app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -62,7 +67,7 @@ last_crawler_url_id = "8571312"
 
 # Add scheduled tasks, refer to the official documentation: https://apscheduler.readthedocs.io/en/master/
 # use when you want to run the job at fixed intervals of time
-@scheduler.scheduled_job('interval', seconds=60, max_instances=1)
+@scheduler.scheduled_job('interval', seconds=60000, max_instances=1)
 def crawl_phishing_url_from_phishing_tank():
     global last_crawler_url_id
     start, end = 1, 1
@@ -116,9 +121,66 @@ def cron_task_test():
     print('cron task is run...')
 
 # use when you want to run the job just once at a certain point of time
-@scheduler.scheduled_job('date', run_date=date(2022, 11, 11))
-def date_task_test():
-    print('date task is run...')
+@scheduler.scheduled_job('date', run_date=date(2024, 5, 19))
+def merge_legitimate_and_phishing_data():
+    phishing_data = pd.read_csv('data/phishing_data.csv')
+    legitimate_data = pd.read_csv('data/legitimate_data.csv')
+
+    # Concatenate the dataframes
+    total_data = pd.concat([phishing_data, legitimate_data], ignore_index=True)
+
+    # Save the concatenated dataframe to a new CSV file
+    total_data.to_csv('data/total_data.csv', index=False)
+    
+
+@scheduler.scheduled_job('date', run_date=date(2024, 5, 19))
+def split_train_test_val_data():
+    data = pd.read_csv('data/total_data.csv')
+
+    # Split the data into training (80%) and temp (20%)
+    train_data, temp_data = train_test_split(data, test_size=0.2, random_state=42)
+
+    # Split the temp data into validation (50% of 20%) and test (50% of 20%)
+    val_data, test_data = train_test_split(temp_data, test_size=0.5, random_state=42)
+
+    # Save the splits to separate CSV files
+    train_data.to_csv('data/train.csv', index=False)
+    val_data.to_csv('data/val.csv', index=False)
+    test_data.to_csv('data/test.csv', index=False)
+    
+@scheduler.scheduled_job('date', run_date=date(2024, 5, 19))
+def train():
+    data = pd.read_csv('data/total_data.csv')
+    df = pd.DataFrame(data)
+    
+    X = df.drop(['Domain', 'Label'], axis=1)
+    
+    y = df['Label']
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2, random_state = 12)
+    
+    tree = DecisionTreeClassifier(max_depth=5)
+    tree.fit(X_train, y_train)
+    
+    forest = RandomForestClassifier(max_depth=5)
+    forest.fit(X_train, y_train)
+    
+    xgb = XGBClassifier(learning_rate=0.4, max_depth=7)
+    xgb.fit(X_train, y_train)
+ 
+    tree_pred = tree.predict(X_test)
+    
+    forest_pred = tree.predict(X_test)
+    
+    xgb_pred = xgb.predict(X_test)
+ 
+    score = pd.DataFrame({
+        'model': ['DecisionTree', 'RandomForest', 'XGBoost'],
+        'accuracy': [accuracy_score(y_test, tree_pred), accuracy_score(y_test, forest_pred), accuracy_score(y_test, xgb_pred)],
+        'f1-score': [f1_score(y_test, tree_pred), f1_score(y_test, forest_pred), f1_score(y_test, xgb_pred)]
+    })
+ 
+    print(score)
+
 class DataAdmin(admin.PageAdmin):
     page_schema = PageSchema(label="Data", icon="fa fa-database", url="/home", isDefaultPage=True, sort=100)
     page_path = "data"
@@ -238,7 +300,7 @@ def histogram():
     num_features = len(features)
     num_cols = 4
     num_rows = math.ceil(num_features / num_cols)
-    fig, axes = plt.subplots(num_rows, num_cols, figsize=(15, 4 * num_rows))
+    fig, axes = plt.subplots(num_rows, num_cols, figsize=(15, 3 * num_rows))  # Adjust the figsize here
     axes = axes.flatten()
     
     for i, feature in enumerate(features):
@@ -272,7 +334,7 @@ def drawHeatMap():
         os.makedirs(output_dir)
 
     # Vẽ heatmap của ma trận tương quan
-    plt.figure(figsize=(16, 12))
+    plt.figure(figsize=(24, 18))
     sns.heatmap(corr, annot=True, cmap='coolwarm')
     plt.title('Correlation Matrix')
 
@@ -296,29 +358,15 @@ class DataVisualAdmin(admin.PageAdmin):
                         amis.Image(
                             type="image",
                             # originalSrc="plot/images.png",
-                            height=500,
-                            width=750,
+                            height=1000,
+                            width=1500,
                             src="upload/histogram.png",
                         ),
                         amis.Image(         
                             type="image",
-                            height=500,
-                            width=750,
+                            height=1000,
+                            width=1500,
                             src="upload/correlation_matrix.png",
-                        ),
-                    ]    
-                ),
-                amis.Grid.Column(
-                    body=[
-                        amis.Images(
-                            type="image",
-                            # originalSrc="plot/images.png",
-                            src="plot/images.png",
-                        ),
-                        amis.Image(
-                            type="image",
-                            # originalSrc="plot/images.png",
-                            src="plot/images.png",
                         ),
                     ]    
                 )
@@ -330,12 +378,12 @@ site.register_admin(DataAdmin, CrawledFileAdmin, DataVisualAdmin)
 
 site.mount_app(app)
 
-
 @app.on_event("startup")
 async def startup():
     # Mount the background management system
     # Start the scheduled task scheduler
-    scheduler.start()    
+    scheduler.start()   
+     
     await site.db.async_run_sync(SQLModel.metadata.create_all, is_session=False)
 
 

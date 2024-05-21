@@ -147,6 +147,7 @@ class CrawledFileAdmin(admin.PageAdmin):
     def get_file_info(self):
         files_info = []
         directory_path = "file"
+        
         # Iterate over each file in the directory
         for file_name in os.listdir(directory_path):
             # Get the full file path
@@ -161,9 +162,11 @@ class CrawledFileAdmin(admin.PageAdmin):
                 readable_time = datetime.fromtimestamp(modified_time).strftime('%Y-%m-%d %H:%M:%S')
                 
                 # Append the file name and its modified time to the list
-                files_info.append({"id": file_name.replace(".csv", ""),"file_name": file_name, "modified_at": readable_time})
+                files_info.append({"id": file_name.replace(".csv", ""), "file_name": file_name, "modified_at": readable_time})
 
-        # Print the array to verify
+        # Sort the files_info list by the 'modified_at' field
+        files_info = sorted(files_info, key=lambda x: x['modified_at'], reverse=True)
+        
         return files_info
     def read_csv(self, file_path):
         with open(file_path, mode='r', newline='', encoding='utf-8') as file:

@@ -33,19 +33,28 @@ class Phisherman:
         return f"https://www.phishtank.com/phish_detail.php?phish_id={url_id}"
 
     def get_ids(self, page):
+        
         print(f"Gathering links from page [{page}]... ", end="")
+        
         self.driver.get(self.make_page_url(page))
         try:
             WebDriverWait(self.driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, ".value:first-child > a")))
+            
             elements = self.driver.find_elements(By.CSS_SELECTOR, ".value:first-child > a")
+            
             url_ids = [element.text for element in elements]
+            
             print("Success")
+            
             return url_ids
         except Exception as e:
+            
             print(f"Error: {e}")
+            
             return []
 
     def get_data(self, url_id):
+        
         print(f"Gathering data for url [id={url_id}]... ", end="")
         
         self.driver.get(self.make_detail_page_url(url_id))
@@ -106,10 +115,6 @@ class Phisherman:
             # Generate the dynamic filename
             current_datetime = datetime.now().strftime('%Y%m%d_%H%M%S')
             filename = f'file/legitimate_commoncrawl_{current_datetime}.csv'
-            print("start:")
-            print(start)
-            print("end:")
-            print(end)
             
             def get_domain(url):
                 return urlparse(url).netloc
@@ -155,6 +160,7 @@ class Phisherman:
 
     def find_last_crawled_url_page(self, last_crawled_id): 
         for page in range(1, 10000):
+            
             result = self.get_ids(page)
             if result:
                 for url_id in result:
@@ -163,16 +169,18 @@ class Phisherman:
         return 1  # Return 1 if not found, so it starts from the beginning
 
     def crawl(self, last_crawler_url_id):
+        
         last_page = self.find_last_crawled_url_page(last_crawler_url_id)
-        print("Start crawling! Phisherman is gathering data... from page:  ")
-        print(last_page)
+        
         last_id = last_crawler_url_id
+        
         if (int(last_page) == 1):
             print("No more newer url to crawl")
             return last_id
         flag = 0
         
         for page in range(self.start, int(last_page) - 1):
+            
             result = self.get_ids(page)
             if result:
                 for url_id in result:

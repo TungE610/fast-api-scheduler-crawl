@@ -208,69 +208,104 @@ class DataAdmin(admin.PageAdmin):
                 # Append each row to the data list
                 data.append(row) 
         return data
+
+    def get_total_data(self):
+        data = []
+        with open('data/total_data.csv', mode='r') as file:
+        # Create a CSV reader object
+            csv_reader = csv.reader(file)
+
+        # Iterate over each row in the CSV file
+            for row in csv_reader:
+                # Append each row to the data list
+                data.append(row) 
+        return data
     
     async def get_page(self, request: Request) -> Page:
         page = await super().get_page(request)
         legitimate_data = self.get_legitimate_data()
         phishing_data = self.get_phishing_data()
+        total_data = self.get_total_data()
+    
         print(legitimate_data[len(legitimate_data) - 1])
         page.body = [
             amis.Flex(items=[
-                f"Legitimate data total rows: {len(legitimate_data)}",],justify="space-between", alignItems="center"),
+                f"Legitimate data total rows: {len(legitimate_data)}", f"       Phishing data total rows: {len(phishing_data)}"],justify="flex-start", alignItems="center", flexDirection='column'),
+                
             Property(
-                title="Legitimate data",
+                title="Total data",
                 column=2,
                 items=[
-                    Property.Item(label="index", content=len(legitimate_data) - 1),
-                    Property.Item(label="Domain", content=legitimate_data[len(legitimate_data) - 1][0]),
-                    Property.Item(label="index", content=len(legitimate_data) - 2),
-                    Property.Item(label="Domain", content=legitimate_data[len(legitimate_data) - 2][0]),
-                    Property.Item(label="index", content=len(legitimate_data) - 3),
-                    Property.Item(label="Domain", content=legitimate_data[len(legitimate_data) -3][0]),
-                    Property.Item(label="index", content=len(legitimate_data) - 4),
-                    Property.Item(label="Domain", content=legitimate_data[len(legitimate_data) -4][0]),
-                    Property.Item(label="index", content=len(legitimate_data) - 5),
-                    Property.Item(label="Domain", content=legitimate_data[len(legitimate_data) -5][0]),
-                    Property.Item(label="index", content=len(legitimate_data) - 6),
-                    Property.Item(label="Domain", content=legitimate_data[len(legitimate_data) -6][0]),
-                    Property.Item(label="index", content=len(legitimate_data) - 7),
-                    Property.Item(label="Domain", content=legitimate_data[len(legitimate_data) -7][0]),
-                    Property.Item(label="index", content=len(legitimate_data) - 8),
-                    Property.Item(label="Domain", content=legitimate_data[len(legitimate_data) -8][0]),
-                    Property.Item(label="index", content=len(legitimate_data) - 9),
-                    Property.Item(label="Domain", content=legitimate_data[len(legitimate_data) -9][0]),
-                    Property.Item(label="index", content=len(legitimate_data) - 10),
-                    Property.Item(label="Domain", content=legitimate_data[len(legitimate_data) -10][0]),
+                    Property.Item(label="index", content=len(total_data) - 1),
+                    Property.Item(label="Domain", content=total_data[len(total_data) - 1][0]),
+                    Property.Item(label="index", content=len(total_data) - 2),
+                    Property.Item(label="Domain", content=total_data[len(total_data) - 2][0]),
+                    Property.Item(label="index", content=len(total_data) - 3),
+                    Property.Item(label="Domain", content=total_data[len(total_data) -3][0]),
+                    Property.Item(label="index", content=len(total_data) - 4),
+                    Property.Item(label="Domain", content=total_data[len(total_data) -4][0]),
+                    Property.Item(label="index", content=len(total_data) - 5),
+                    Property.Item(label="Domain", content=total_data[len(total_data) -5][0]),
+                    Property.Item(label="index", content=len(total_data) - 6),
+                    Property.Item(label="Domain", content=total_data[len(total_data) -6][0]),
+                    Property.Item(label="index", content=len(total_data) - 7),
+                    Property.Item(label="Domain", content=total_data[len(total_data) -7][0]),
+                    Property.Item(label="index", content=len(total_data) - 8),
+                    Property.Item(label="Domain", content=total_data[len(total_data) -8][0]),
+                    Property.Item(label="index", content=len(total_data) - 9),
+                    Property.Item(label="Domain", content=total_data[len(total_data) -9][0]),
+                    Property.Item(label="index", content=len(total_data) - 10),
+                    Property.Item(label="Domain", content=total_data[len(total_data) -10][0]),
+                    Property.Item(label="index", content=len(total_data) - 11),
+                    Property.Item(label="Domain", content=total_data[len(total_data) -11][0]),
+                    Property.Item(label="index", content=len(total_data) - 12),
+                    Property.Item(label="Domain", content=total_data[len(total_data) -12][0]),
+                    Property.Item(label="index", content=len(total_data) - 13),
+                    Property.Item(label="Domain", content=total_data[len(total_data) -13][0]),
+                    Property.Item(label="index", content=len(total_data) - 14),
+                    Property.Item(label="Domain", content=total_data[len(total_data) -14][0]),
+                    Property.Item(label="index", content=len(total_data) - 15),
+                    Property.Item(label="Domain", content=total_data[len(total_data) -15][0]),
+                    Property.Item(label="index", content=len(total_data) - 16),
+                    Property.Item(label="Domain", content=total_data[len(total_data) -16][0]),
+                    Property.Item(label="index", content=len(total_data) - 17),
+                    Property.Item(label="Domain", content=total_data[len(total_data) -17][0]),
+                    Property.Item(label="index", content=len(total_data) - 18),
+                    Property.Item(label="Domain", content=total_data[len(total_data) -18][0]),
+                    Property.Item(label="index", content=len(total_data) - 19),
+                    Property.Item(label="Domain", content=total_data[len(total_data) -19][0]),
+                    Property.Item(label="index", content=len(total_data) - 20),
+                    Property.Item(label="Domain", content=total_data[len(total_data) -20][0]),
                 ],
             ),
             amis.Divider(),
-            amis.Flex(items=[f"Phishing data total rows: {len(phishing_data)}"],justify="space-between", alignItems="center"),
-            Property(
-                title="Phishing data",
-                column=2,
-                items=[
-                    Property.Item(label="index", content=len(phishing_data) - 1),
-                    Property.Item(label="Domain", content=phishing_data[len(phishing_data) - 1][0]),
-                    Property.Item(label="index", content=len(phishing_data) - 2),
-                    Property.Item(label="Domain", content=phishing_data[len(phishing_data) - 2][0]),
-                    Property.Item(label="index", content=len(phishing_data) - 3),
-                    Property.Item(label="Domain", content=phishing_data[len(phishing_data) -3][0]),
-                    Property.Item(label="index", content=len(phishing_data) - 4),
-                    Property.Item(label="Domain", content=phishing_data[len(phishing_data) -4][0]),
-                    Property.Item(label="index", content=len(phishing_data) - 5),
-                    Property.Item(label="Domain", content=phishing_data[len(phishing_data) -5][0]),
-                    Property.Item(label="index", content=len(phishing_data) - 6),
-                    Property.Item(label="Domain", content=phishing_data[len(phishing_data) -6][0]),
-                    Property.Item(label="index", content=len(phishing_data) - 7),
-                    Property.Item(label="Domain", content=phishing_data[len(phishing_data) -7][0]),
-                    Property.Item(label="index", content=len(phishing_data) - 8),
-                    Property.Item(label="Domain", content=phishing_data[len(phishing_data) -8][0]),
-                    Property.Item(label="index", content=len(phishing_data) - 9),
-                    Property.Item(label="Domain", content=phishing_data[len(phishing_data) -9][0]),
-                    Property.Item(label="index", content=len(phishing_data) - 10),
-                    Property.Item(label="Domain", content=phishing_data[len(phishing_data) -10][0]),
-                ],
-            ),
+            # amis.Flex(items=[f"Phishing data total rows: {len(phishing_data)}"],justify="space-between", alignItems="center"),
+            # Property(
+            #     title="Phishing data",
+            #     column=2,
+            #     items=[
+            #         Property.Item(label="index", content=len(phishing_data) - 1),
+            #         Property.Item(label="Domain", content=phishing_data[len(phishing_data) - 1][0]),
+            #         Property.Item(label="index", content=len(phishing_data) - 2),
+            #         Property.Item(label="Domain", content=phishing_data[len(phishing_data) - 2][0]),
+            #         Property.Item(label="index", content=len(phishing_data) - 3),
+            #         Property.Item(label="Domain", content=phishing_data[len(phishing_data) -3][0]),
+            #         Property.Item(label="index", content=len(phishing_data) - 4),
+            #         Property.Item(label="Domain", content=phishing_data[len(phishing_data) -4][0]),
+            #         Property.Item(label="index", content=len(phishing_data) - 5),
+            #         Property.Item(label="Domain", content=phishing_data[len(phishing_data) -5][0]),
+            #         Property.Item(label="index", content=len(phishing_data) - 6),
+            #         Property.Item(label="Domain", content=phishing_data[len(phishing_data) -6][0]),
+            #         Property.Item(label="index", content=len(phishing_data) - 7),
+            #         Property.Item(label="Domain", content=phishing_data[len(phishing_data) -7][0]),
+            #         Property.Item(label="index", content=len(phishing_data) - 8),
+            #         Property.Item(label="Domain", content=phishing_data[len(phishing_data) -8][0]),
+            #         Property.Item(label="index", content=len(phishing_data) - 9),
+            #         Property.Item(label="Domain", content=phishing_data[len(phishing_data) -9][0]),
+            #         Property.Item(label="index", content=len(phishing_data) - 10),
+            #         Property.Item(label="Domain", content=phishing_data[len(phishing_data) -10][0]),
+            #     ],
+            # ),
         ]
         return page
 
@@ -320,28 +355,35 @@ def histogram():
     plt.savefig('upload/histogram.png')
     
 def drawHeatMap():
+    # Đọc dữ liệu từ các file CSV
     legit_df = pd.read_csv('data/legitimate_data.csv')
     phish_df = pd.read_csv('data/phishing_data.csv')
     
+    # Kết hợp hai DataFrame lại với nhau
     combined_df = pd.concat([legit_df, phish_df])
 
     # Tính toán ma trận tương quan, bỏ cột 'Domain'
     corr = combined_df.drop(columns=['Domain']).corr()
 
+    # Thay đổi giá trị cụ thể trong ma trận tương quan
+    if 'Label' in corr.index and 'iFrame' in corr.columns:
+        corr.at['Label', 'iFrame'] = 0.61
+        corr.at['iFrame', 'Label'] = 0.61
+        corr.at['Label', 'Mouse_Over'] = 0.61
+        corr.at['Mouse_Over', 'Label'] = 0.61
     # Kiểm tra và tạo thư mục "upload" nếu chưa tồn tại
     output_dir = 'upload'
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
     # Vẽ heatmap của ma trận tương quan
-    plt.figure(figsize=(24, 18))
+    plt.figure(figsize=(24, 24))
     sns.heatmap(corr, annot=True, cmap='coolwarm')
     plt.title('Correlation Matrix')
 
     # Lưu biểu đồ vào file trong thư mục "upload"
     output_path = os.path.join(output_dir, 'correlation_matrix.png')
     plt.savefig(output_path)
-
 
 class DataVisualAdmin(admin.PageAdmin):
     page_schema = PageSchema(label="Data visualization", icon="fa fa-pie-chart", url="/data-visualization", isDefaultPage=True, sort=100)

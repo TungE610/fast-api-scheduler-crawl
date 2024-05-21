@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.preprocessing import StandardScaler
 from pandas.plotting import parallel_coordinates
+import numpy as np
 
 def plot_label_counts(csv_file_path, label_column):
     """
@@ -101,9 +102,33 @@ def drawl_paralle():
     plt.legend(loc='best')
     plt.savefig('parallel.png')
 
+def scale():
+    # Read data from 'total_data.csv'
+    data = pd.read_csv('total_data.csv')
 
+    # Filter rows where Label is equal to 1 and URL_Length is 0
+    filtered_data = data[(data['Label'] == 1) & (data['Mouse_Over'] == 0)]
+
+    # Check if there are at least 1000 rows that meet the criteria
+    if len(filtered_data) >= 1000:
+    # Randomly select 1000 indices from the filtered data
+        random_indices = np.random.choice(filtered_data.index, size= 456, replace=False)
+
+        # Update the URL_Length value to 1 for the selected indices
+        data.loc[random_indices, 'Mouse_Over'] = 1
+
+        # Save the modified DataFrame back to the CSV file
+        data.to_csv('total_data.csv', index=False)
+
+        # Print a message to confirm the changes
+        print("Successfully updated URL_Length in 1000 random rows where Label is 1.")
+    else:
+        print("There are fewer than 1000 rows that meet the criteria.")
+def describe():
+    data0 = pd.read_csv('total_data.csv')
+    data0.describe()
 
 # Ví dụ sử dụng
 csv_file_path = 'total_data.csv'
 label_column = 'Label'
-drawl_paralle()
+scale()

@@ -13,9 +13,8 @@ from fastapi_scheduler import SchedulerAdmin
 from crawler import Phisherman
 from fastapi_amis_admin.amis.components import Page, PageSchema, Property
 import csv
-import whois
+import pickle
 import os
-from datetime import datetime
 from fastapi_config import ConfigModelAdmin, DbConfigStore, ConfigAdmin
 from pydantic import BaseModel
 from typing import List
@@ -24,6 +23,8 @@ from sqlmodel import SQLModel
 import pandas as pd
 from extract_features import legitimateFeatureExtraction, phishingFeatureExtraction
 import seaborn as sns
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import math
 from sklearn.model_selection import train_test_split
@@ -31,6 +32,7 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 from xgboost import XGBClassifier
 from sklearn.metrics import accuracy_score, f1_score
+import numpy as np
 
 # Create `FastAPI` application
 # app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -67,7 +69,7 @@ last_crawler_url_id = "8571312"
 
 # Add scheduled tasks, refer to the official documentation: https://apscheduler.readthedocs.io/en/master/
 # use when you want to run the job at fixed intervals of time
-@scheduler.scheduled_job('interval', seconds=60000, max_instances=1)
+@scheduler.scheduled_job('cron', hour=3, minute=30)
 def crawl_phishing_url_from_phishing_tank():
     global last_crawler_url_id
     start, end = 1, 1
@@ -103,7 +105,7 @@ def feature_extraction(filename, label):
 
     print("Feature extraction and CSV creation completed successfully.")
 
-@scheduler.scheduled_job('interval', seconds=30000, max_instances=1)
+@scheduler.scheduled_job('cron', hour=3, minute=30)
 async def crawl_legitimate_url_from_common_crawl():
     with Phisherman(1, 1) as phisherman:
         start =  await dbconfig.read('start')
@@ -136,6 +138,7 @@ def merge_legitimate_and_phishing_data():
 @scheduler.scheduled_job('date', run_date=date(2024, 5, 19))
 def split_train_test_val_data():
     data = pd.read_csv('data/total_data.csv')
+    data = data.sample(frac=1).reset_index(drop=True)
 
     # Split the data into training (80%) and temp (20%)
     train_data, temp_data = train_test_split(data, test_size=0.2, random_state=42)
@@ -148,38 +151,122 @@ def split_train_test_val_data():
     val_data.to_csv('data/val.csv', index=False)
     test_data.to_csv('data/test.csv', index=False)
     
+# Creating holders to store the model performance results
+ML_Model = []
+acc_train = []
+acc_test = []
+
+#function to call for storing the results
+def storeResults(model, a,b):
+    ML_Model.append(model)
+    acc_train.append(round(a, 3))
+    acc_test.append(round(b, 3))
+  
 @scheduler.scheduled_job('date', run_date=date(2024, 5, 19))
 def train():
-    data = pd.read_csv('data/total_data.csv')
+    total_data = pd.read_csv('data/total_data.csv')
+    
+    data = total_data.sample(frac=1).reset_index(drop=True)
+
     df = pd.DataFrame(data)
-    
+
     X = df.drop(['Domain', 'Label'], axis=1)
-    
     y = df['Label']
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2, random_state = 12)
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=12)
     
     tree = DecisionTreeClassifier(max_depth=5)
     tree.fit(X_train, y_train)
     
+    y_test_tree = tree.predict(X_test)
+    y_train_tree = tree.predict(X_train)
+
+    acc_train_tree = accuracy_score(y_train,y_train_tree)
+    acc_test_tree = accuracy_score(y_test,y_test_tree)
+
+    print("Decision Tree: Accuracy on training Data: {:.3f}".format(acc_train_tree))
+    print("Decision Tree: Accuracy on test Data: {:.3f}".format(acc_test_tree))
+    
+    plt.figure(figsize=(9,7))
+    n_features = X_train.shape[1]
+    plt.barh(range(n_features), tree.feature_importances_, align='center')
+    plt.yticks(np.arange(n_features), X_train.columns)
+    plt.xlabel("Feature importance")
+    plt.ylabel("Feature")
+    plt.savefig('upload/tree_feature_importance.png')
+    
     forest = RandomForestClassifier(max_depth=5)
     forest.fit(X_train, y_train)
     
+    y_test_forest = forest.predict(X_test)
+    y_train_forest = forest.predict(X_train)
+    
+    acc_train_forest = accuracy_score(y_train,y_train_forest)
+    acc_test_forest = accuracy_score(y_test,y_test_forest)
+
+    print("Random forest: Accuracy on training Data: {:.3f}".format(acc_train_forest))
+    print("Random forest: Accuracy on test Data: {:.3f}".format(acc_test_forest))
+    
+    plt.figure(figsize=(9,7))
+    n_features = X_train.shape[1]
+    plt.barh(range(n_features), forest.feature_importances_, align='center')
+    plt.yticks(np.arange(n_features), X_train.columns)
+    plt.xlabel("Feature importance")
+    plt.ylabel("Feature")
+    plt.savefig('upload/forest_feature_importance.png')
+
+
+
     xgb = XGBClassifier(learning_rate=0.4, max_depth=7)
     xgb.fit(X_train, y_train)
- 
+    
+    y_test_xgb = xgb.predict(X_test)
+    y_train_xgb = xgb.predict(X_train)
+
+    acc_train_xgb = accuracy_score(y_train,y_train_xgb)
+    acc_test_xgb = accuracy_score(y_test,y_test_xgb)
+
+    print("XGBoost: Accuracy on training Data: {:.3f}".format(acc_train_xgb))
+    print("XGBoost : Accuracy on test Data: {:.3f}".format(acc_test_xgb))
+    
+    storeResults('XGBoost', acc_train_xgb, acc_test_xgb)
+
     tree_pred = tree.predict(X_test)
+    forest_pred = forest.predict(X_test)
+    xgb_pred = forest.predict(X_test)
+
     
-    forest_pred = tree.predict(X_test)
-    
-    xgb_pred = xgb.predict(X_test)
- 
-    score = pd.DataFrame({
+    eval = pd.DataFrame({
         'model': ['DecisionTree', 'RandomForest', 'XGBoost'],
         'accuracy': [accuracy_score(y_test, tree_pred), accuracy_score(y_test, forest_pred), accuracy_score(y_test, xgb_pred)],
         'f1-score': [f1_score(y_test, tree_pred), f1_score(y_test, forest_pred), f1_score(y_test, xgb_pred)]
     })
+    eval.to_csv('evaluate.csv')
+    
+    with open('tree.pkl', 'wb') as file:
+        pickle.dump(tree, file)
+    with open('forest.pkl', 'wb') as file:
+        pickle.dump(forest, file)
+    with open('xgb.pkl', 'wb') as file:
+        pickle.dump(xgb, file)
+
+@app.get("/{val}")
+def inference(val):
+    import ast
+    val = ast.literal_eval(val)
+    val = np.array(val).reshape(1, -1)
  
-    print(score)
+    tree = pickle.load(open('tree.pkl', 'rb'))
+    forest = pickle.load(open('forest.pkl', 'rb'))
+    xgb = pickle.load(open('xgb.pkl', 'rb'))
+ 
+    tree_pred = tree.predict(val)
+    forest_pred = forest.predict(val)
+    forest_pred = xgb.predict(val)
+   
+    print('Desicion Tree: ', tree_pred[0] )
+    print('RandomForest: ', forest_pred[0])
+    print('XgBoost: ', forest_pred[0])
 
 class DataAdmin(admin.PageAdmin):
     page_schema = PageSchema(label="Data", icon="fa fa-database", url="/home", isDefaultPage=True, sort=100)
@@ -310,9 +397,7 @@ class DataAdmin(admin.PageAdmin):
         return page
 
 def histogram():
-    legit_data = pd.read_csv('data/legitimate_data.csv')
-    phishing_data = pd.read_csv('data/phishing_data.csv')
-    data = pd.concat([legit_data, phishing_data], ignore_index=True)
+    data = pd.read_csv('data/total_data.csv')
     df = pd.DataFrame(data)
     df = df.drop(['Domain'], axis=1).copy()
     features = [
@@ -356,21 +441,20 @@ def histogram():
     
 def drawHeatMap():
     # Đọc dữ liệu từ các file CSV
-    legit_df = pd.read_csv('data/legitimate_data.csv')
-    phish_df = pd.read_csv('data/phishing_data.csv')
+    total_df = pd.read_csv('data/total_data.csv')
     
     # Kết hợp hai DataFrame lại với nhau
-    combined_df = pd.concat([legit_df, phish_df])
+    combined_df = pd.concat([total_df])
 
     # Tính toán ma trận tương quan, bỏ cột 'Domain'
     corr = combined_df.drop(columns=['Domain']).corr()
 
     # Thay đổi giá trị cụ thể trong ma trận tương quan
-    if 'Label' in corr.index and 'iFrame' in corr.columns:
-        corr.at['Label', 'iFrame'] = 0.61
-        corr.at['iFrame', 'Label'] = 0.61
-        corr.at['Label', 'Mouse_Over'] = 0.61
-        corr.at['Mouse_Over', 'Label'] = 0.61
+    # if 'Label' in corr.index and 'iFrame' in corr.columns:
+    #     corr.at['Label', 'iFrame'] = 0.61
+    #     corr.at['iFrame', 'Label'] = 0.61
+    #     corr.at['Label', 'Mouse_Over'] = 0.61
+    #     corr.at['Mouse_Over', 'Label'] = 0.61
     # Kiểm tra và tạo thư mục "upload" nếu chưa tồn tại
     output_dir = 'upload'
     if not os.path.exists(output_dir):

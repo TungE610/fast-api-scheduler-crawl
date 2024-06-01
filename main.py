@@ -21,7 +21,7 @@ from typing import List
 from fastapi_amis_admin.models import Field
 from sqlmodel import SQLModel
 import pandas as pd
-from extract_features import legitimateFeatureExtraction, phishingFeatureExtraction
+from extract_features import legitimateFeatureExtraction, phishingFeatureExtraction, extractForInference
 import seaborn as sns
 import matplotlib
 matplotlib.use('Agg')
@@ -31,13 +31,24 @@ from sklearn.model_selection import train_test_split
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 from xgboost import XGBClassifier
-from sklearn.metrics import accuracy_score, f1_score
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 import numpy as np
+from sklearn.neural_network import MLPClassifier
+from sklearn.svm import SVC
+from fastapi.middleware.cors import CORSMiddleware
 
 # Create `FastAPI` application
 # app.mount("/static", StaticFiles(directory="static"), name="static")
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+)
 # Create `AdminSite` instance
 site = AdminSite(settings=Settings(debug=True, database_url_async='sqlite+aiosqlite:///amisadmin.db'))
 
@@ -65,19 +76,29 @@ class SiteCfgAdmin(ConfigAdmin):
 
 scheduler = SchedulerAdmin.bind(site)
 
-last_crawler_url_id = "8571312"
-
 # Add scheduled tasks, refer to the official documentation: https://apscheduler.readthedocs.io/en/master/
 # use when you want to run the job at fixed intervals of time
 @scheduler.scheduled_job('cron', hour=3, minute=30)
 def crawl_phishing_url_from_phishing_tank():
     global last_crawler_url_id
+    
     start, end = 1, 1
 
     with Phisherman(start, end) as phisherman:
         # saved_to_file_name = phisherman.crawl(last_crawler_url_id)
         feature_extraction("file/phishing_tank_20240519_225602.csv", 1)
+        
+@scheduler.scheduled_job('date', run_date=date(2024, 5, 19))
+async def crawl_phishing_url_from_phishing_tank_right_now():
+    last_crawler_url_id =  await dbconfig.read('last_crawler_url_id')
+    
+    last_crawler_url_id = last_crawler_url_id.data
+    start, end = 1, 1
 
+    with Phisherman(start, end) as phisherman:
+        saved_to_file_name = phisherman.crawl(last_crawler_url_id)
+        feature_extraction(saved_to_file_name, 1)
+        
 def feature_extraction(filename, label):
     phishing_url = pd.read_csv(filename)
     phish_features = []
@@ -115,7 +136,17 @@ async def crawl_legitimate_url_from_common_crawl():
                 
         filename = phisherman.get_data_from_common_crawl(start.data, end.data, pattern.data, crawler_code.data)
         feature_extraction(filename, 0)
-    
+
+@scheduler.scheduled_job('date', run_date=date(2024, 5, 19))
+async def crawl_legitimate_url_from_common_crawl_right_now():
+    with Phisherman(1, 1) as phisherman:
+        start =  await dbconfig.read('start')
+        end =  await dbconfig.read('end')
+        pattern =  await dbconfig.read('pattern')
+        crawler_code =  await dbconfig.read('crawler_code')
+                
+        filename = phisherman.get_data_from_common_crawl(start.data, end.data, pattern.data, crawler_code.data)
+        feature_extraction(filename, 0)
 
 # use when you want to run the job periodically at certain time(s) of day
 @scheduler.scheduled_job('cron', hour=3, minute=30)
@@ -162,51 +193,59 @@ def storeResults(model, a,b):
     acc_train.append(round(a, 3))
     acc_test.append(round(b, 3))
   
+def get_xgb_imp(xgb, feat_names):
+    booster = xgb.get_booster()
+    imp_vals = booster.get_score(importance_type='weight')
+    imp_dict = {feat_names[i]: float(imp_vals.get('f' + str(i), 0.0)) for i in range(len(feat_names))}
+    total = np.array(list(imp_dict.values())).sum()
+    
+    if total == 0:
+        return {k: 0.0 for k in imp_dict.keys()}  # Avoid division by zero
+    
+    return {k: v / total for k, v in imp_dict.items()}
+    
 @scheduler.scheduled_job('date', run_date=date(2024, 5, 19))
 def train():
     total_data = pd.read_csv('data/total_data.csv')
-    
     data = total_data.sample(frac=1).reset_index(drop=True)
-
+    features = [
+        'Have_IP',
+        'Have_At',
+        'URL_Length',
+        'URL_Depth',
+        'Redirection',
+        'https_Domain'
+        'TinyURL',
+        'Prefix/Suffix',
+        'DNS_Record',
+        'Domain_Age',
+        'Domain_End',
+        'iFrame',
+        'Mouse_Over',
+        'Web_Forwards',
+        'Web_Traffic',
+        'Right_Click',
+    ]
     df = pd.DataFrame(data)
-
+ 
     X = df.drop(['Domain', 'Label'], axis=1)
     y = df['Label']
-
+ 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=12)
     
     tree = DecisionTreeClassifier(max_depth=5)
     tree.fit(X_train, y_train)
-    
-    y_test_tree = tree.predict(X_test)
-    y_train_tree = tree.predict(X_train)
-
-    acc_train_tree = accuracy_score(y_train,y_train_tree)
-    acc_test_tree = accuracy_score(y_test,y_test_tree)
-
-    print("Decision Tree: Accuracy on training Data: {:.3f}".format(acc_train_tree))
-    print("Decision Tree: Accuracy on test Data: {:.3f}".format(acc_test_tree))
-    
     plt.figure(figsize=(9,7))
     n_features = X_train.shape[1]
+    
     plt.barh(range(n_features), tree.feature_importances_, align='center')
     plt.yticks(np.arange(n_features), X_train.columns)
     plt.xlabel("Feature importance")
     plt.ylabel("Feature")
     plt.savefig('upload/tree_feature_importance.png')
-    
+
     forest = RandomForestClassifier(max_depth=5)
     forest.fit(X_train, y_train)
-    
-    y_test_forest = forest.predict(X_test)
-    y_train_forest = forest.predict(X_train)
-    
-    acc_train_forest = accuracy_score(y_train,y_train_forest)
-    acc_test_forest = accuracy_score(y_test,y_test_forest)
-
-    print("Random forest: Accuracy on training Data: {:.3f}".format(acc_train_forest))
-    print("Random forest: Accuracy on test Data: {:.3f}".format(acc_test_forest))
-    
     plt.figure(figsize=(9,7))
     n_features = X_train.shape[1]
     plt.barh(range(n_features), forest.feature_importances_, align='center')
@@ -214,32 +253,39 @@ def train():
     plt.xlabel("Feature importance")
     plt.ylabel("Feature")
     plt.savefig('upload/forest_feature_importance.png')
-
-
-
+ 
+ 
     xgb = XGBClassifier(learning_rate=0.4, max_depth=7)
     xgb.fit(X_train, y_train)
-    
-    y_test_xgb = xgb.predict(X_test)
-    y_train_xgb = xgb.predict(X_train)
+    # print(xgb.feature_importances_)
 
-    acc_train_xgb = accuracy_score(y_train,y_train_xgb)
-    acc_test_xgb = accuracy_score(y_test,y_test_xgb)
-
-    print("XGBoost: Accuracy on training Data: {:.3f}".format(acc_train_xgb))
-    print("XGBoost : Accuracy on test Data: {:.3f}".format(acc_test_xgb))
+    # plt.figure(figsize=(9, 7))
+    # n_features = len(features)
+    # plt.barh(range(n_features), xgb.feature_importances_, align='center')
+    # plt.yticks(np.arange(n_features), features)
+    # plt.xlabel("Feature importance")
+    # plt.ylabel("Feature")
+    # plt.title("Feature Importance")
+    # plt.savefig('upload/xgb_feature_importance.png')
     
-    storeResults('XGBoost', acc_train_xgb, acc_test_xgb)
+    svm = SVC(kernel='linear', C=1.0, random_state=12)
+    svm.fit(X_train, y_train)
+ 
+    mlp = MLPClassifier(alpha=0.001, hidden_layer_sizes=([100,100,100]))
+    mlp.fit(X_train, y_train)
 
     tree_pred = tree.predict(X_test)
     forest_pred = forest.predict(X_test)
-    xgb_pred = forest.predict(X_test)
-
+    xgb_pred = xgb.predict(X_test)
+    svm_pred = svm.predict(X_test)
+    mlp_pred = mlp.predict(X_test)
     
     eval = pd.DataFrame({
-        'model': ['DecisionTree', 'RandomForest', 'XGBoost'],
-        'accuracy': [accuracy_score(y_test, tree_pred), accuracy_score(y_test, forest_pred), accuracy_score(y_test, xgb_pred)],
-        'f1-score': [f1_score(y_test, tree_pred), f1_score(y_test, forest_pred), f1_score(y_test, xgb_pred)]
+        'model': ['DecisionTree', 'RandomForest', 'XGBoost', 'SVM', 'MLP'],
+        'accuracy': [accuracy_score(y_test, tree_pred), accuracy_score(y_test, forest_pred), accuracy_score(y_test, xgb_pred), accuracy_score(y_test, svm_pred), accuracy_score(y_test, mlp_pred)],
+        'precision': [precision_score(y_test, tree_pred), precision_score(y_test, forest_pred), precision_score(y_test, xgb_pred), precision_score(y_test, svm_pred), precision_score(y_test, mlp_pred)],
+        'recall': [recall_score(y_test, tree_pred), recall_score(y_test, forest_pred), recall_score(y_test, xgb_pred), recall_score(y_test, svm_pred), recall_score(y_test, mlp_pred)],
+        'f1-score': [f1_score(y_test, tree_pred), f1_score(y_test, forest_pred), f1_score(y_test, xgb_pred), f1_score(y_test, svm_pred), f1_score(y_test, mlp_pred)],
     })
     eval.to_csv('evaluate.csv')
     
@@ -249,11 +295,19 @@ def train():
         pickle.dump(forest, file)
     with open('xgb.pkl', 'wb') as file:
         pickle.dump(xgb, file)
+    with open('svm.pkl', 'wb') as file:
+        pickle.dump(xgb, file)
+    with open('mlp.pkl', 'wb') as file:
+        pickle.dump('mlp.pkl', file)
+class URLRequest(BaseModel):
+    url: str
+    
+@app.post("/predict")
+async def inference(request: URLRequest):
+    request.url
+    val = extractForInference(request.url)
 
-@app.get("/{val}")
-def inference(val):
-    import ast
-    val = ast.literal_eval(val)
+    # val = ast.literal_eval(val)
     val = np.array(val).reshape(1, -1)
  
     tree = pickle.load(open('tree.pkl', 'rb'))
@@ -262,12 +316,16 @@ def inference(val):
  
     tree_pred = tree.predict(val)
     forest_pred = forest.predict(val)
-    forest_pred = xgb.predict(val)
-   
-    print('Desicion Tree: ', tree_pred[0] )
-    print('RandomForest: ', forest_pred[0])
-    print('XgBoost: ', forest_pred[0])
-
+    xgb_pred = xgb.predict(val)
+    
+    response = {
+        'Decision Tree': int(tree_pred[0]),
+        'RandomForest': int(forest_pred[0]),
+        'XgBoost': int(xgb_pred[0])
+    }
+    
+    # Return the JSON response
+    return response
 class DataAdmin(admin.PageAdmin):
     page_schema = PageSchema(label="Data", icon="fa fa-database", url="/home", isDefaultPage=True, sort=100)
     page_path = "data"
@@ -395,7 +453,13 @@ class DataAdmin(admin.PageAdmin):
             # ),
         ]
         return page
-
+def showDistribution():
+    data0 = pd.read_csv('data/total_data.csv')
+    data0.hist(bins=50, figsize=(15, 15))
+    plt.tight_layout()  # Automatically adjust subplot parameters to give specified padding
+    plt.savefig('upload/distribution.png')
+    plt.show()
+    
 def histogram():
     data = pd.read_csv('data/total_data.csv')
     df = pd.DataFrame(data)
@@ -404,6 +468,7 @@ def histogram():
         'Have_IP',
         'Have_At',
         'URL_Length',
+        'URL_Depth',
         'Redirection',
         'https_Domain',
         'TinyURL',
@@ -472,6 +537,7 @@ def drawHeatMap():
 class DataVisualAdmin(admin.PageAdmin):
     page_schema = PageSchema(label="Data visualization", icon="fa fa-pie-chart", url="/data-visualization", isDefaultPage=True, sort=100)
     page_path = "data-visualization"
+    showDistribution()
     histogram()
     drawHeatMap()
     async def get_page(self, request: Request) -> Page:
@@ -481,6 +547,13 @@ class DataVisualAdmin(admin.PageAdmin):
             amis.Grid(
                 columns=[amis.Grid.Column(
                     body=[
+                        amis.Image(
+                            type="image",
+                            # originalSrc="plot/images.png",
+                            height=1000,
+                            width=1500,
+                            src="upload/distribution.png",
+                        ),
                         amis.Image(
                             type="image",
                             # originalSrc="plot/images.png",

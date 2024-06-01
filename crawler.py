@@ -172,6 +172,8 @@ class Phisherman:
     def crawl(self, last_crawler_url_id):
         
         last_page = self.find_last_crawled_url_page(last_crawler_url_id)
+        print("lat page")
+        print(last_page)
         
         last_id = last_crawler_url_id
         
@@ -179,7 +181,10 @@ class Phisherman:
             print("No more newer url to crawl")
             return last_id
         flag = 0
-        
+        df = pd.DataFrame(columns=['url'])
+        # Save the DataFrame to a CSV file
+        df.to_csv(self.filename, index=False)
+
         for page in range(self.start, int(last_page) - 1):
             
             result = self.get_ids(page)

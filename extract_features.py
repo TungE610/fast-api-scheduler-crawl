@@ -123,7 +123,7 @@ def web_traffic(url):
             rank_str = rank_text[rank_start_index:rank_end_index].replace(',', '').strip()
             rank = int(rank_str) if rank_str.isdigit() else None
             if rank is not None and rank > 10000000:
-                return 1  # High traffic
+                return 1  # low traffic
     except Exception as e:
         print(f"Error: {e}")
     
@@ -289,6 +289,45 @@ def legitimateFeatureExtraction(url,label):
   features.append(rightClick(response))
   features.append(forwarding(response))
   features.append(label)
+  
+  return features
+
+def extractForInference(url):
+
+  features = []
+  #Address bar based features (10)
+  features.append(havingIP(url))
+  features.append(haveAtSign(url))
+  features.append(getLength(url))
+  features.append(getDepth(url))
+  features.append(redirection(url))
+  features.append(httpDomain(url))
+  features.append(tinyURL(url))
+  features.append(prefixSuffix(url))
+
+  dns = 0
+  domain_name = None
+  flags = 0
+  flags = flags | whois.NICClient.WHOIS_QUICK
+  try:
+    domain_name = whois.whois(getDomain(url), flags=flags)
+  except:
+    dns = 1
+
+  features.append(dns)
+  features.append(getLength(url))
+  features.append(1 if dns == 1 else domainAge(domain_name))
+  features.append(1 if dns == 1 else domainEnd(domain_name))
+  
+  # HTML & Javascript based features (4)
+  try:
+    response = requests.get(url)
+  except:
+    response = ""
+  features.append(iframe(response))
+  features.append(mouseOver(response))
+  features.append(rightClick(response))
+  features.append(forwarding(response))
   
   return features
 

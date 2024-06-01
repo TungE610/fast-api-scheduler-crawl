@@ -50,12 +50,6 @@ def plot_label_counts(csv_file_path, label_column):
         print("Lỗi phân tích file CSV.")
     except Exception as e:
         print(f"Đã xảy ra lỗi: {e}")
-def showDistribution():
-    data0 = pd.read_csv('total_data.csv')
-    data0.hist(bins=50, figsize=(15, 15))
-    plt.tight_layout()  # Automatically adjust subplot parameters to give specified padding
-    plt.savefig('distribution.png')
-    plt.show()
 
 def drawl_paralle():
     data = pd.read_csv('total_data.csv')
@@ -107,15 +101,15 @@ def scale():
     data = pd.read_csv('total_data.csv')
 
     # Filter rows where Label is equal to 1 and URL_Length is 0
-    filtered_data = data[(data['Label'] == 1) & (data['Mouse_Over'] == 0)]
+    filtered_data = data[(data['Label'] == 1) & (data['Redirection'] == 0)]
 
     # Check if there are at least 1000 rows that meet the criteria
     if len(filtered_data) >= 1000:
     # Randomly select 1000 indices from the filtered data
-        random_indices = np.random.choice(filtered_data.index, size= 456, replace=False)
+        random_indices = np.random.choice(filtered_data.index, size= 204, replace=False)
 
         # Update the URL_Length value to 1 for the selected indices
-        data.loc[random_indices, 'Mouse_Over'] = 1
+        data.loc[random_indices, 'Redirection'] = 1
 
         # Save the modified DataFrame back to the CSV file
         data.to_csv('total_data.csv', index=False)
@@ -128,7 +122,33 @@ def describe():
     data0 = pd.read_csv('total_data.csv')
     data0.describe()
 
+def visualize_result():
+
+    df = pd.read_csv('../evaluate.csv')
+
+    index = range(len(df))
+
+    bar_width = 0.35
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    bar1 = ax.bar([i - bar_width/2 for i in index], df['accuracy'], bar_width, label='Accuracy', color='green')
+
+    # Vẽ biểu đồ cột cho f1-score
+
+    bar2 = ax.bar([i + bar_width/2 for i in index], df['f1-score'], bar_width, label='F1 Score', color='orange')
+ 
+    plt.xlabel('Model')
+
+    plt.ylabel('Scores')
+
+    plt.title('Đánh giá mô hình')
+
+    plt.xticks([i + bar_width / 2 for i in index], df['model'])
+
+    plt.legend()
+    
 # Ví dụ sử dụng
 csv_file_path = 'total_data.csv'
 label_column = 'Label'
-scale()
+visualize_result()
